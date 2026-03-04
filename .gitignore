@@ -39,3 +39,33 @@
 
 # debug information files
 *.dwo
+
+# ===============================================
+# Build outputs
+Debug/
+Release/
+build/
+
+*.elf
+*.hex
+*.bin
+*.map
+*.list
+
+# CubeIDE / Eclipse settings
+.metadata/
+.settings/
+*.launch
+
+# CubeMX generated cache
+.mxproject
+.ai/
+
+# Temporary files
+*.log
+*.tmp
+*.bak
+
+# OS files
+.DS_Store
+Thumbs.db
