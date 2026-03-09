@@ -1,4 +1,4 @@
-# composite_pattern_example
+# layered_composition_firmware
 
 STM32 기반 임베디드 시스템에서 **Composition을 활용한 Layered Firmware Architecture 예제**
 
