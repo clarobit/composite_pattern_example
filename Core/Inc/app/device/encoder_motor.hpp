@@ -21,6 +21,7 @@ public:
   void reverse();
 
   void setDuty(uint16_t duty);
+  uint16_t getDuty() const;
   uint16_t getMaxDuty() const;
 
   int32_t getCount() const;

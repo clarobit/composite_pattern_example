@@ -46,12 +46,6 @@ void ControlModule::setTarget(int32_t x_target_cnt, int32_t y_target_cnt) {
   target_x_cnt_ = x_target_cnt;
   target_y_cnt_ = y_target_cnt;
 
-  if (x_warn_sw_.isPressed() || y_warn_sw_.isPressed()) {
-    stopAll();
-    updateWarningState();
-    return;
-  }
-
   state_ = State::MOVING;
 }
 

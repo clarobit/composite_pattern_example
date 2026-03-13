@@ -1,78 +1,51 @@
-# Application Layer (app_main)
+# Application Layer
 
-Application Layer는 전체 Firmware의 **최상위 실행 계층**.
+Application Layer는 전체 firmware의 **최상위 실행 계층**.
 
-이 계층은 STM32Cube에서 생성되는 `main.c`와
-C++ 기반 Module Layer 사이의 **C ↔ C++ bridge 역할**을 수행함.
+이 계층은 STM32Cube에서 생성되는 `main.c`와  
+C++ 기반 Module Layer 사이의 **연결 역할**을 수행함.
 
-STM32CubeIDE는 기본적으로 C 기반 프로젝트 구조를 사용하기 때문에
-C++로 구현된 Module 객체를 직접 `main.c`에서 사용하기 어렵다.
+또한 Module Layer를 조합하여  
+시스템 전체 동작 흐름을 **관리하고 감독하는 역할**을 담당함.
 
-이를 해결하기 위해 `app_main.cpp`를 통해
+Application Layer에서는 아래 동작을 수행함
 
-* Module 객체 생성
-* Module 초기화
-* Module update 호출
-* UART callback과 연결되는 interface 제공
-
-을 담당하도록 구성함.
-
-Application Layer는 실제 기능 로직을 구현하지 않고
-**Module Layer를 실행하고 연결하는 역할만 수행함.**
+- Module 객체 생성 및 초기화
+- 통신 frame parsing 및 Module 제어
+- Module 동작 흐름 관리
 
 ---
 
-## File Structure
+## 주요 역할
 
-Application Layer는 다음 두 파일로 구성됨.
+- C 기반 `main.c`와 C++ Module Layer 연결
+- Module 객체 생성 및 초기화
+- 통신 frame parsing 및 Module 제어
+- Module 동작 흐름 관리
 
-```cpp
-app/app_main.hpp
-app/app_main.cpp
-```
+## 설계 목적
 
-`app_main.hpp`는 C와 C++ 모두에서 사용할 수 있도록 작성된 header이며
-`app_main.cpp`는 실제 Module 객체 생성과 실행을 담당함.
+- `main.c`는 최소한의 코드만 유지
+- Module Layer는 독립적인 C++ 로직 유지
+- firmware 계층 구조 분리
 
----
+## 동작 개요
 
-## C and C++ Bridge
-
-STM32Cube에서 생성되는 `main.c`는 C 코드이므로
-C++ 클래스 객체를 직접 사용할 수 없음.
-
-따라서 Application Layer에서는
-`extern "C"` 인터페이스를 사용하여 C에서 호출 가능한 함수들을 제공함.
-
-예:
-
-```cpp
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-void app_init(void);
-void control_update(void);
-void shoot_update(void);
-void feeder_update(void);
-void communication_update(void);
-
-uint8_t *comm_get_rx_buffer(void);
-void comm_set_rx_done(void);
-
-#ifdef __cplusplus
-}
-#endif
-```
-
-이 함수를 통해 `main.c`는 내부 구현을 알 필요 없이
-Application Layer의 함수만 호출하여 전체 시스템을 실행할 수 있음.
+1) UART를 통해 제어 frame을 수신
+2) Application Layer에서 frame을 parsing
+3) parsing된 target 값을 각 Module에 전달
+4) main loop에서 Module update가 반복 실행됨
+5) 동작 완료 시 통신을 통해 상태를 응답
 
 ---
 
-## Module Object Creation
+## Application Layer 기능
 
-`app_main.cpp`에서는 모든 Module 객체를 생성함.
+### 1. Layered Composition
+
+Application Layer에서는 Module Layer의 객체들을 생성하고 조합하여 전체 시스템 동작을 구성함.
+
+이 구조는 **Layered Architecture와 Composition 구조**를 기반으로 설계됨.
 
 ```cpp
 namespace {
@@ -83,141 +56,82 @@ app::module::ShootModule shoot(...);
 
 app::module::FeederModule feeder(...);
 
-app::module::CommunicationModule communication(
-    &huart2,
-bt_power_port,
-bt_power_pin,
-bt_state_port,
-bt_state_pin,
-control,
-shoot,
-feeder);
+app::module::CommunicationModule communication(...);
 
 }
 ```
 
-Module 객체는 namespace 내부 static 영역에 생성하여
-프로그램 전체에서 하나의 instance만 사용하도록 구성함.
+각 Module 객체는 namespace 내부 static 영역에 생성되어 프로그램 전체에서 하나의 instance로 사용됨.
 
-또한 CommunicationModule은
-ControlModule, ShootModule, FeederModule을 참조로 받아
-각 Module을 제어할 수 있도록 설계됨.
+Application Layer는 이러한 Module 객체들을 조합하여 시스템 동작 흐름을 구성함.
 
 ---
 
-## Initialization
+### 2. C / C++ Bridge Interface
 
-Application Layer는 `app_init()` 함수를 통해
-모든 Module을 초기화함.
+STM32Cube에서 생성되는 `main.c`는 C 코드이므로 C++ 클래스 객체를 직접 사용할 수 없음.
 
-```cpp
-void app_init(void);
-```
+따라서 Application Layer에서는 `extern "C"` 인터페이스를 사용하여 C에서 호출 가능한 함수들을 제공함.
 
-`main.c`에서는 peripheral 초기화 이후
-이 함수를 호출하여 전체 Module을 시작함.
-
-예:
+예
 
 ```cpp
-app_init();
-HAL_UART_Receive_IT(&huart2, comm_get_rx_buffer(), 9);
-```
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-이 과정에서
+void example_init(void);
+void example_update(void);
+void example_interrupt(void);
 
-* ControlModule start
-* ShootModule start
-* FeederModule start
-* CommunicationModule start
-
-가 수행됨.
-
----
-
-## Update Loop
-
-Firmware의 main loop에서는
-각 Module의 update 함수를 주기적으로 호출함.
-
-```cpp
-control_update();
-shoot_update();
-feeder_update();
-communication_update();
-```
-
-이 구조는 **update 기반 state machine 구조**를 사용하며
-각 Module은 내부 상태에 따라 동작을 수행함.
-
-현재 프로젝트에서는 약 10ms 주기로 update가 호출되도록 설계됨.
-
----
-
-## UART Callback Interface
-
-Bluetooth 통신은 UART interrupt를 통해 데이터를 수신함.
-
-UART 수신 완료 callback에서는
-CommunicationModule에 수신 완료를 전달함.
-
-`main.c`
-
-```cpp
-void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
-{
-if (huart->Instance == USART2)
-{
-comm_set_rx_done();
-HAL_UART_Receive_IT(&huart2, comm_get_rx_buffer(), 9);
+#ifdef __cplusplus
 }
-}
+#endif
 ```
 
-여기서
-
-* `comm_get_rx_buffer()`
-  CommunicationModule 내부 RX buffer 주소 반환
-
-* `comm_set_rx_done()`
-  새 frame이 수신되었음을 CommunicationModule에 전달
-
-이 구조를 통해 interrupt에서는 최소한의 작업만 수행하고
-실제 데이터 처리 로직은 `communication.update()`에서 실행됨.
+이 인터페이스를 통해 `main.c`는 Application Layer의 함수만 호출하여 전체 시스템을 실행할 수 있음.
 
 ---
 
-## Interrupt and Main Loop Separation
+## Internal State
 
-Application Layer에서는 다음과 같은 구조를 사용함.
+Application Layer에서는 통신 처리와 feeder 동작 흐름을 관리하기 위해 내부 상태 변수를 사용함.
 
-Interrupt context
+### Frame State
 
-```cpp
-UART receive interrupt
-→ flag set
-```
-
-Main loop
+통신 frame의 수신 및 처리 상태를 관리함.
 
 ```cpp
-communication.update()
-→ handleRx()
-→ module control
+FRAME_IDLE
+FRAME_RECEIVED
+FRAME_PROCESSING
 ```
 
-즉 interrupt에서는 **데이터 수신 완료만 표시하고**
-실제 처리 로직은 main loop에서 수행하도록 설계함.
+- FRAME_IDLE : 새로운 frame을 기다리는 상태
+- FRAME_RECEIVED : UART interrupt로 frame 수신이 완료된 상태
+- FRAME_PROCESSING : 수신된 frame을 처리하는 상태
 
-이 방식은 다음 장점을 가짐.
+### Drop State
 
-* interrupt 실행 시간 최소화
-* 시스템 안정성 향상
-* 디버깅 용이성
+feeder 동작 흐름을 관리하기 위한 상태.
+
+```cpp
+DROP_IDLE
+DROP_READY
+DROP_RUNNING
+```
+
+- DROP_IDLE : drop 동작이 없는 대기 상태
+- DROP_READY : drop 요청이 발생한 상태
+- DROP_RUNNING : feeder가 동작 중인 상태
 
 ---
 
-## Overall Firmware Flow
+## System Execution Flow
+
+Application Layer에서는 main loop와 interrupt를 기반으로 시스템 동작이 실행됨.
+
+### System Flow
 
 전체 firmware 실행 흐름은 다음과 같음.
 
@@ -238,27 +152,105 @@ UART interrupt
 comm_set_rx_done()
 ```
 
-Application Layer는 이 구조에서
-**main.c와 Module Layer를 연결하는 역할**을 수행함.
+- **app_init()** : Application Layer 초기화 및 모든 Module 시작
+- **control_update()** : ControlModule 상태 업데이트 및 위치 제어 수행
+- **shoot_update()** : ShootModule 상태 업데이트 및 모터 속도 제어 수행
+- **feeder_update()** : FeederModule 상태 업데이트 및 공 공급 동작 수행
+- **communication_update()** : 통신 frame 처리 및 시스템 동작 흐름 관리
+- **comm_set_rx_done()** : 새로운 통신 frame 수신 완료 상태 설정
+
+
+### Frame Processing Flow
+
+새로운 통신 frame이 수신되면 Application Layer에서 다음 순서로 처리됨.
+
+```cpp
+UART interrupt
+↓
+comm_set_rx_done()
+↓
+communication_update()
+↓
+applyReceivedFrame()
+↓
+handleFrameProcessing()
+```
+
+- **UART interrupt** : UART 수신 완료
+- **comm_set_rx_done()** : frame 수신 완료 표시
+- **communication_update()** : frame 처리 상태 확인
+- **applyReceivedFrame()** : frame parsing 및 명령 적용
+- **handleFrameProcessing()** : 시스템 동작 흐름 관리
 
 ---
 
-## Application Layer Summary
+## Functions
 
-Application Layer는 다음 역할을 수행함.
+Application Layer에서는 다음 함수들을 통해  
+Module update와 frame 처리를 수행함.
 
-* C 기반 main.c와 C++ Module Layer 연결
-* Module 객체 생성 및 초기화
-* main loop에서 Module update 실행
-* UART interrupt와 CommunicationModule 연결
+### app_init
 
-이를 통해
+```cpp
+void app_init(void);
+```
 
-* main.c는 최소한의 코드만 유지
-* Module Layer는 순수 C++ 로직으로 구성
-* firmware 구조의 계층 분리 유지
+모든 Module을 초기화하고  
+시스템 상태를 초기 상태로 설정함.
 
-가 가능하도록 설계됨.
+초기화 과정에서 다음을 수행함.
 
-Application Layer는 전체 firmware 구조에서
-**Module Layer를 실행하는 entry point 역할**을 담당함.
+- ControlModule start
+- ShootModule start
+- FeederModule start
+- CommunicationModule start
+- RX buffer 초기화
+- UART receive 시작
+
+
+### control_update
+
+```cpp
+void control_update(void);
+```
+
+ControlModule의 update 함수를 호출함.
+
+### shoot_update
+
+```cpp
+void shoot_update(void);
+```
+
+ShootModule의 update 함수를 호출함.
+
+### feeder_update
+
+```cpp
+void feeder_update(void);
+```
+
+FeederModule의 update 함수를 호출함.
+
+### communication_update
+
+```cpp
+void communication_update(void);
+```
+
+통신 frame 상태를 확인하여 frame 처리 및 시스템 동작을 수행함.
+
+- 새로운 frame 수신 시 `applyReceivedFrame()` 실행
+- frame 처리 상태일 때 `handleFrameProcessing()` 실행
+
+### comm_set_rx_done
+
+```cpp
+void comm_set_rx_done(void);
+```
+
+UART interrupt에서 호출되는 함수.
+
+새로운 통신 frame이 수신되었음을 Application Layer에 전달함.
+
+---

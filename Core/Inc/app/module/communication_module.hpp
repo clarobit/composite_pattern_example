@@ -1,53 +1,38 @@
 #pragma once
 
-#include "app/device/bluetooth.hpp"
-#include "app/module/control_module.hpp"
-#include "app/module/feeder_module.hpp"
-#include "app/module/shoot_module.hpp"
-#include "main.h"
-
 #include <cstdint>
+
+#include "app/device/bluetooth.hpp"
 
 namespace app::module {
 
 class CommunicationModule {
 public:
-  CommunicationModule(UART_HandleTypeDef *huart, GPIO_TypeDef *bt_power_port,
-                      uint16_t bt_power_pin, GPIO_TypeDef *bt_state_port,
-                      uint16_t bt_state_pin, ControlModule &control,
-                      ShootModule &shoot, FeederModule &feeder);
+  CommunicationModule(UART_HandleTypeDef *huart,
+                      GPIO_TypeDef *bt_power_port,
+                      uint16_t bt_power_pin,
+                      GPIO_TypeDef *bt_state_port,
+                      uint16_t bt_state_pin,
+                      uint8_t *rx_buffer,
+                      uint16_t frame_size);
 
   void start();
   void stop();
 
-  void update();
+  HAL_StatusTypeDef startReceive();
+  HAL_StatusTypeDef send(const uint8_t *data, uint16_t len);
 
   uint8_t *getRxBuffer();
-  void setRxDone();
+  uint16_t getFrameSize() const;
+
+  static int16_t parseInt16(const uint8_t *data);
 
 private:
-  static constexpr uint8_t FRAME_SIZE = 9;
-  static constexpr uint8_t DROP_OFF = 0;
-  static constexpr uint8_t DROP_ON = 1;
-  static constexpr uint8_t DROP_DONE = 0xFF;
-
+  UART_HandleTypeDef *huart_;
   app::device::Bluetooth bluetooth_;
 
-  ControlModule &control_;
-  ShootModule &shoot_;
-  FeederModule &feeder_;
-
-  uint8_t rx_buf_[FRAME_SIZE] = {0};
-
-  uint8_t rx_done_ = 0;
-  uint8_t drop_requested_ = 0;
-  uint8_t drop_reported_ = 0;
-
-  void handleRx();
-  void handleFeeder();
-  void sendFrame(const uint8_t *data);
-  void sendDropDone();
-  int16_t parseInt16(const uint8_t *data) const;
+  uint8_t *rx_buf_;
+  uint16_t frame_size_;
 };
 
 } // namespace app::module

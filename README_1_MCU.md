@@ -10,7 +10,28 @@ C++ 클래스 형태의 wrapper로 구현하여 사용함.
 
 ---
 
-## Encoder
+## MCU Summary
+
+현재 MCU Layer는 다음과 같은 Peripheral wrapper를 제공함.
+
+- **Encoder**  
+Timer Encoder mode 기반 encoder count 제어
+
+- **GpioOut**  
+GPIO 출력 제어
+
+- **GpioIn**  
+GPIO 입력 상태 읽기
+
+- **Pwm**  
+Timer PWM 출력 제어
+
+- **Uart**  
+UART 통신 인터페이스
+
+---
+
+## 1. Encoder
 
 Timer의 Encoder mode를 사용하여 엔코더 카운트를 제어하고 읽기 위한 클래스.
 
@@ -66,7 +87,7 @@ Encoder count 값을 0으로 초기화함.
 
 ---
 
-## GpioOut
+## 2_1. GpioOut
 
 GPIO 출력을 제어하기 위한 클래스.
 
@@ -106,7 +127,7 @@ GPIO 출력 상태를 반전함.
 
 ---
 
-## GpioIn
+## 2_2. GpioIn
 
 GPIO 입력 상태를 읽기 위한 클래스.
 
@@ -133,7 +154,7 @@ false : Low
 
 ---
 
-## Pwm
+## 3. Pwm
 
 Timer PWM 출력을 제어하기 위한 클래스.
 
@@ -189,7 +210,7 @@ Timer period 기준 최대 duty 값을 반환함.
 
 ---
 
-## Uart
+## 4. Uart
 
 UART 통신을 위한 클래스.
 

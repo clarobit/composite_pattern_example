@@ -17,7 +17,6 @@ void shoot_update(void);
 void feeder_update(void);
 void communication_update(void);
 
-uint8_t *comm_get_rx_buffer(void);
 void comm_set_rx_done(void);
 
 #ifdef __cplusplus

@@ -51,7 +51,7 @@ private:
 
   State state_ = State::IDLE;
 
-  static constexpr int32_t POSITION_TOLERANCE = 50;
+  static constexpr int32_t POSITION_TOLERANCE = 50; // 오차범위 50cnt = 1도
   static constexpr uint16_t MOVE_DUTY = 300;
 
   uint8_t updateAxis(app::device::EncoderMotor &motor, int32_t target_cnt);

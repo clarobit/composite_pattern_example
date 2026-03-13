@@ -123,7 +123,6 @@ int main(void)
   MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
   app_init();
-  HAL_UART_Receive_IT(&huart2, comm_get_rx_buffer(), 9);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -432,7 +431,6 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
   if (huart->Instance == USART2)
   {
     comm_set_rx_done();
-    HAL_UART_Receive_IT(&huart2, comm_get_rx_buffer(), 9);
   }
 }
 

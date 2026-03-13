@@ -33,6 +33,8 @@ void EncoderMotor::setDuty(uint16_t duty) {
   pwm_.setDuty(duty);
 }
 
+uint16_t EncoderMotor::getDuty() const { return pwm_.getDuty(); }
+
 uint16_t EncoderMotor::getMaxDuty() const { return pwm_.getMaxDuty(); }
 
 int32_t EncoderMotor::getCount() const { return encoder_.getCount(); }
